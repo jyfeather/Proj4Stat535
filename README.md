@@ -6,7 +6,8 @@ This is a class project for stat 535 in Unversity of Washington. The project lin
 Duty Description: Binary classification (buzz/no buzz) on Twitter
 
 **Dataset:**  
-* 100,000 samples, 77 predictors, 1 response
+* Training: 100,000 samples, 77 predictors, 1 response
+* Testing: 
 * http://ama.liglab.fr/resourcestools/datasets/buzz-prediction-in-social-media/
 
 **Two supervised methods are implemented:**
