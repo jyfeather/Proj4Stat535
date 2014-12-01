@@ -53,6 +53,7 @@ TrainReduction <- function(train, y) {
 #                         Data Input  
 #--------------------------------------------------------------------
 dat.orig <- read.delim(file = "./data/train.txt", header = F)
+dat.test <- read.delim(file = "./data/test.txt", header = F)
 x.orig <- dat.orig[,-78]
 y.true <- dat.orig[,78]
 table(y.true) # 99144 0, 856 1, imbalance dataset
@@ -77,17 +78,17 @@ dat.red <- TrainReduction(x.train, y.true)
 x.train <- dat.red[,1:154]; y.true <- dat.red[,155]
 
 # Model Selection, time consuming
-tuned <- tune.svm(x = x.train[1:10000,], y = y.true[1:10000,], 
-                  gamma = 10^(-2:-1), cost = 10^(1:2),
-                  tunecontrol = tune.control(sampling = "cross", cross = 5)) # CV
+#tuned <- tune.svm(x = x.train[1:10000,], y = y.true[1:10000,], 
+#                  gamma = 10^(-2:-1), cost = 10^(1:2),
+#                  tunecontrol = tune.control(sampling = "cross", cross = 5)) # CV
 
 # Learn Model
-model.gaussian <- svm(x.train, y.true, kernel = "radial", probability = TRUE) # Gaussian Kernel
-#model.linear <- svm(x.train, y.train, kernel = "linear", probability = TRUE)
-#model.ploynomial <- svm(x.train, y.train, kernel = "polynomial", probability = TRUE)
+model.gaussian <- svm(x.train[,1:77], y.true, kernel = "radial", probability = TRUE) # Gaussian Kernel
+#model.linear <- svm(x.train[,1:77], y.true, kernel = "linear", probability = TRUE)
+#model.ploynomial <- svm(x.train[,1:77], y.true, kernel = "polynomial", probability = TRUE)
 #model.sigmoid <- svm(x.train, y.train, kernel = "sigmoid", probability = TRUE)
 
-pred.gaussian <- predict(model.gaussian, x.test, decision.values = TRUE, probability = TRUE)
+pred.gaussian <- predict(model.gaussian, x.test[,1:77], decision.values = TRUE, probability = TRUE)
 table(pred.gaussian, y.test)
 
 #-------------------------------------------------------------------- 
@@ -96,9 +97,16 @@ table(pred.gaussian, y.test)
 #--------------------------------------------------------------------
 pred <- pred.gaussian
 library(ROCR)
-y.prob <- attr(pred, "probabilities")[,2]
-roc.pred <- prediction(y.prob, y.test)
+roc.pred <- prediction(attributes(pred)$decision.values, y.test)
 roc.perf <- performance(roc.pred, "tpr", "fpr")
 plot(roc.perf, colorize = TRUE)
 auc.tmp <- performance(roc.pred, "auc")
 auc <- as.numeric(auc.tmp@y.values)
+
+#-------------------------------------------------------------------- 
+#                         Testing  
+#--------------------------------------------------------------------
+dat.test <- FeatureExpansion(dat.test)
+res.gaussian <- predict(model.gaussian, dat.test[,1:77], decision.values = TRUE, probability = TRUE)
+output <- attributes(res.gaussian)$decision.values
+write.csv(output[1:10000], file = "./result/f2.out", row.names = FALSE, col.names = FALSE)
