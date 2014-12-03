@@ -75,7 +75,7 @@ x.test <- x.expan[no.test,]
 y.test <- y.true[no.test]
 
 # Train dataset dimension reduction
-dat.cross <- TrainReduction(x.expan, y.true, 0.1)
+dat.cross <- TrainReduction(x.expan, y.true, 0.05)
 x.cross <- dat.cross[,1:154]; y.cross <- dat.cross[,155]
 dat.train <- TrainReduction(x.expan, y.true, 0.3)
 x.train <- dat.train[,1:154]; y.train <- dat.train[,155]
@@ -91,16 +91,18 @@ tuned <- tune.svm(x = x.cross, y = y.true,
 
 # Learn Model
 model.gaussian <- svm(x.train, y.train, kernel = "radial", probability = TRUE) # Gaussian Kernel
+model.gaussian.np <- svm(x.train[,1:77], y.train, kernel = "radial") # Gaussian Kernel
 model.ploynomial <- svm(x.train, y.train, kernel = "polynomial", probability = TRUE)
 
-pred.gaussian <- predict(model.gaussian, x.test[,1:77], decision.values = TRUE, probability = TRUE)
-table(pred.gaussian, y.test)
+pred.gaussian <- predict(model.gaussian, x.test, decision.values = TRUE, probability = TRUE)
+pred.gaussian.np <- predict(model.gaussian.np, x.test[,1:77])
+table(pred.gaussian.np, y.test)
 
 #-------------------------------------------------------------------- 
 #                         Performance Estimation  
 # imbalance dataset, use ROC/AUC as performance evaluator
 #--------------------------------------------------------------------
-pred <- pred.gaussian
+pred <- pred.gaussian.np
 library(ROCR)
 roc.pred <- prediction(attributes(pred)$decision.values, y.test)
 roc.perf <- performance(roc.pred, "tpr", "fpr")
