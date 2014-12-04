@@ -7,7 +7,7 @@ library(e1071)
 #-------------------------------------------------------------------- 
 #                         Defined Functions  
 # 1. FeatureExpansion(dat): generate new features
-# 2. TrainReduction(train, n1, n2): reduce training set sample size
+# 2. TrainReduction(train, y, por): reduce training set sample size
 #--------------------------------------------------------------------
 FeatureExpansion <- function(dat) {
   # origin: 11 features * 7 periods
@@ -30,7 +30,7 @@ FeatureExpansion <- function(dat) {
   return(dat)
 }
 
-TrainReduction <- function(train, y) {
+TrainReduction <- function(train, y, por) {
   pos <- which(y == 1)  # keep the imbalanced dataset
   train.new <- train[-pos,]; y.new <- y[-pos]
   train.new.clusters <- kmeans(train.new, centers = 10)
@@ -41,7 +41,7 @@ TrainReduction <- function(train, y) {
       clu.del <- c(clu.del, which(train.new.clusters$cluster == i))
     } else {
       clus <- which(train.new.clusters$cluster == i)
-      clu.del <- c(clu.del, sample(clus, size * 0.7))
+      clu.del <- c(clu.del, sample(clus, size * (1-por)))
     }
   }
   train.new <- train.new[-clu.del,]; y.new <- y.new[-clu.del]
@@ -68,25 +68,30 @@ y.true <- as.matrix(y.true)
 # issue: time consuming
 #--------------------------------------------------------------------
 # Feature Generation, 187 features in total
-x.train <- FeatureExpansion(x.orig)
+x.expan <- FeatureExpansion(x.orig)
 
-x.test <- x.train[1:50000,]
-y.test <- y.true[1:50000]
+no.test <- sample(1:nrow(x.expan), 50000)
+x.test <- x.expan[no.test,]
+y.test <- y.true[no.test]
 
 # Train dataset dimension reduction
-dat.red <- TrainReduction(x.train, y.true)
-x.train <- dat.red[,1:154]; y.true <- dat.red[,155]
+dat.cross <- TrainReduction(x.expan, y.true, 0.1)
+x.cross <- dat.cross[,1:154]; y.cross <- dat.cross[,155]
+dat.train <- TrainReduction(x.expan, y.true, 0.3)
+x.train <- dat.train[,1:154]; y.train <- dat.train[,155]
+
+# PCA feature selection
+res.pca <- princomp(x.train[,1:77], cor = TRUE)
+plot(res.pca)
 
 # Model Selection, time consuming
-#tuned <- tune.svm(x = x.train[1:10000,], y = y.true[1:10000,], 
-#                  gamma = 10^(-2:-1), cost = 10^(1:2),
-#                  tunecontrol = tune.control(sampling = "cross", cross = 5)) # CV
+tuned <- tune.svm(x = x.cross, y = y.true, 
+                  gamma = 10^(-2:-1), cost = 10^(1:2),
+                  tunecontrol = tune.control(sampling = "cross", cross = 5)) # CV
 
 # Learn Model
-model.gaussian <- svm(x.train[,1:77], y.true, kernel = "radial", probability = TRUE) # Gaussian Kernel
-#model.linear <- svm(x.train[,1:77], y.true, kernel = "linear", probability = TRUE)
-#model.ploynomial <- svm(x.train[,1:77], y.true, kernel = "polynomial", probability = TRUE)
-#model.sigmoid <- svm(x.train, y.train, kernel = "sigmoid", probability = TRUE)
+model.gaussian <- svm(x.train, y.train, kernel = "radial", probability = TRUE) # Gaussian Kernel
+model.ploynomial <- svm(x.train, y.train, kernel = "polynomial", probability = TRUE)
 
 pred.gaussian <- predict(model.gaussian, x.test[,1:77], decision.values = TRUE, probability = TRUE)
 table(pred.gaussian, y.test)
